@@ -1,0 +1,19 @@
+#!/bin/bash
+# Kills the ChatGPT desktop app when its total memory exceeds a limit.
+# Memory = physical footprint (what Activity Monitor shows; includes compressed memory, unlike RSS).
+# Usage: chatgpt-memcap [limit_mb] [interval_s]      (defaults: 1024 MB, every 60 s)
+limit=$(( ${1:-1024} * 1024 * 1024 ))
+interval=${2:-60}
+
+while :; do
+  # Only the app bundle in /Applications; not e.g. the Cursor "openai.chatgpt" extension.
+  pids=$(ps -axo pid=,comm= | grep '/Applications/ChatGPT[^/]*\.app/' | awk '{print $1}')
+  if [ -n "$pids" ]; then
+    total=$(footprint -f bytes $pids 2>/dev/null | awk '/phys_footprint:/ {s+=$2} END {print s+0}')
+    if [ "$total" -gt "$limit" ]; then
+      echo "$(date '+%F %T') ChatGPT at $((total / 1048576)) MB, killing"
+      kill $pids
+    fi
+  fi
+  sleep "$interval"
+done
